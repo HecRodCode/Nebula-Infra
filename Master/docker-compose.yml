@@ -1,0 +1,124 @@
+x-airflow-common: &airflow-common
+  image: apache/airflow:3.0.0.dev0
+  env_file:
+    - ../.env
+  volumes:
+    - airflow_logs:/opt/airflow/logs
+    - airflow_config:/opt/airflow/config
+    - airflow_plugins:/opt/airflow/plugins
+    - ../pipelines:/opt/pipelines
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+
+  # --- DataBase ---
+  postgres:
+    image: postgres:13
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- INIT ---
+  airflow-init:
+    environment:
+      PYTHONPATH: ${PYTHONPATH}
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    user: "0:0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - -c
+      - |
+        mkdir -p /opt/airflow/{logs,dags,plugins,config}
+        chown -R "${AIRFLOW_UID}:0" /opt/airflow/
+        /entrypoint airflow db migrate
+        airflow users create \
+          --username ${_AIRFLOW_WWW_USER_USERNAME} \
+          --password ${_AIRFLOW_WWW_USER_PASSWORD} \
+          --firstname Admin \
+          --lastname Admin \
+          --role Admin \
+          --email admin@admin.com || true
+
+  # --- API SERVER ---
+  airflow-apiserver:
+    environment:
+      PYTHONPATH: ${PYTHONPATH}
+    <<: *airflow-common
+    command: airflow api-server
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # --- SCHEDULER ---
+  airflow-scheduler:
+    environment:
+      PYTHONPATH: ${PYTHONPATH}
+    <<: *airflow-common
+    command: scheduler
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # --- DAG PROCESSOR ---
+  airflow-dag-processor:
+    environment:
+      PYTHONPATH: ${PYTHONPATH}
+    <<: *airflow-common
+    command: dag-processor
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # --- TRIGGERER ---
+  airflow-triggerer:
+    environment:
+      PYTHONPATH: ${PYTHONPATH}
+    <<: *airflow-common
+    command: triggerer
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # --- FLOWER (sin profile, arranca siempre) ---
+  flower:
+    environment:
+      PYTHONPATH: ${PYTHONPATH}
+    <<: *airflow-common
+    command: celery flower --url-prefix=/flower
+    ports:
+      - "5555:5555"
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  airflow_logs:
+  airflow_config:
+  airflow_plugins:
+  postgres_data:
