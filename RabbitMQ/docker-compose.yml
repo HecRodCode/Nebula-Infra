@@ -1,15 +1,16 @@
 services:
   rabbitmq:
-    image: rabbitmq:3.12-management
-    container_name: rabbitmq
-    restart: unless-stopped
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    image: rabbitmq:3-management
+    env_file:
+      - .env
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-      RABBITMQ_MANAGEMENT_PATH_PREFIX: /rabbitmq
+      RABBITMQ_MANAGEMENT_PATH_PREFIX: /rabbitmq   # ← esto es lo nuevo
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_running"]
       interval: 10s

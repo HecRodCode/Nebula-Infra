@@ -1,10 +1,7 @@
 x-airflow-common: &airflow-common
-  build:
-    context: ..
-    args:
-      EXTRA_REQUIREMENTS: ${EXTRA_REQUIREMENTS}
+  image: apache/airflow:2.10.5
   env_file:
-    - ../.env
+    - .env
   volumes:
     - airflow_logs:/opt/airflow/logs
     - airflow_config:/opt/airflow/config
@@ -24,7 +21,7 @@ services:
     healthcheck:
       test:
         - "CMD-SHELL"
-        - "celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d \"celery@$${HOSTNAME}\""
+        - "airflow jobs check --job-type WorkerJob --hostname \"$${HOSTNAME}\""
       interval: 30s
       timeout: 10s
       retries: 5
