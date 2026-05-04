@@ -1,14 +1,15 @@
 x-airflow-common: &airflow-common
   image: apache/airflow:2.10.5
+  environment:
+    _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-amazon"
   env_file:
     - .env
   volumes:
     - airflow_logs:/opt/airflow/logs
     - airflow_config:/opt/airflow/config
     - airflow_plugins:/opt/airflow/plugins
-    - ../pipelines:/opt/pipelines
+    - ../pipelines/dag:/opt/airflow/dags
   user: "${AIRFLOW_UID:-50000}:0"
-
 services:
   airflow-worker:
     <<: *airflow-common
@@ -17,6 +18,7 @@ services:
     environment:
       DUMB_INIT_SETSID: "0"
       PYTHONPATH: ${PYTHONPATH}
+      _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-amazon"
     restart: unless-stopped
     healthcheck:
       test:
@@ -26,7 +28,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-
 volumes:
   airflow_logs:
   airflow_config:

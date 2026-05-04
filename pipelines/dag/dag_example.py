@@ -13,8 +13,8 @@ default_args = {
 def verificar_conexiones():
     import socket
     servicios = {
-        "Postgres": ("10.0.2.69", 5432),
-        "RabbitMQ": ("10.0.2.62", 5672),
+        "Postgres": ("27.0.x.xx", 5432),
+        "RabbitMQ": ("27.0.x.xx", 5672),
     }
     for nombre, (host, puerto) in servicios.items():
         try:

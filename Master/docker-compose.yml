@@ -1,12 +1,14 @@
 x-airflow-common: &airflow-common
   image: apache/airflow:2.10.5
+  environment:
+    _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-amazon"
   env_file:
     - .env
   volumes:
     - airflow_logs:/opt/airflow/logs
     - airflow_config:/opt/airflow/config
     - airflow_plugins:/opt/airflow/plugins
-    - ../pipelines:/opt/pipelines
+    - /home/ubuntu/Nebula-Infra/pipelines/dag:/opt/airflow/dags
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     postgres:
@@ -90,7 +92,7 @@ services:
 
   flower:
     <<: *airflow-common
-    command: celery flower --url-prefix=flower
+    command: celery flower
     ports:
       - "5555:5555"
     restart: unless-stopped
